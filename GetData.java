@@ -7,6 +7,9 @@ import java.sql.Statement;
 import java.util.Map;
 import java.util.HashMap;
 
+import java.util.TreeSet;
+import java.util.Vector;
+
 import org.json.JSONObject;
 import org.json.JSONArray;
 
@@ -107,6 +110,7 @@ public class GetData {
             rs1.close();
             }
 
+            // Hometown City querying
             try (Statement stmt4 = oracleConnection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
                 String hometownQuerying = String.format(
                     "SELECT u.user_id, c.city_id, c.city_name, c.state_name, c.country_name " +
@@ -129,7 +133,7 @@ public class GetData {
                 }
                 rs2.close();
             }
-
+            // Everything with users
             try (Statement stmt3 = oracleConnection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
                 ResultSet rs3 = stmt3.executeQuery(userQuerying);
                 while (rs3.next()) {
@@ -157,8 +161,8 @@ public class GetData {
         } catch (SQLException e) {
             System.err.println(e.getMessage());
         }
-        System.out.println("Data has been successfully retrieved from the database.");
-        System.out.println("Total number of users: " + users_info.length());
+       // System.out.println("Data has been successfully retrieved from the database.");
+       // System.out.println("Total number of users: " + users_info.length());
         return users_info;
     }
 
@@ -170,7 +174,7 @@ public class GetData {
             file.write(users_info.toString());
             file.flush();
             file.close();
-            System.out.println("JSON data has been written to output.json");
+           // System.out.println("JSON data has been written to output.json");
 
         } catch (IOException e) {
             e.printStackTrace();
