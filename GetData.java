@@ -14,6 +14,7 @@ public class GetData {
 
     static String prefix = "project3.";
 
+
     // You must use the following variable as the JDBC connection
     Connection oracleConnection = null;
 
@@ -46,6 +47,7 @@ public class GetData {
 
         Map<Integer, JSONObject> hometownmapping = new HashMap<>();
         Map<Integer, JSONObject> currentCityMapping = new HashMap<>();
+        Map<Integer, JSONArray> friendsMapping = new HashMap<>();
    
 
         
@@ -57,95 +59,106 @@ public class GetData {
                 "FROM %s ORDER BY user_id", userTableName
             );
 
-            String friendsQuerying = String.format("SELECT user1_id, user2_id FROM %s", friendsTableName);
-            rs = stmt.executeQuery(friendsQuerying);
-            Map<Integer, JSONArray> friendsMapping = new HashMap<>();
-            while (rs.next()) {
-                int u1 = rs.getInt("user1_id");
-                int u2 = rs.getInt("user2_id");
+            
+           // Friends querying
+            try (Statement stmt1 = oracleConnection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
 
-                int smaller = Math.min(u1, u2);
-                int larger = Math.max(u1, u2);
+                String friendsQuerying = String.format("SELECT user1_id, user2_id FROM %s", friendsTableName);
+                rs = stmt1.executeQuery(friendsQuerying);
+                while (rs.next()) {
+                    int u1 = rs.getInt("user1_id");
+                    int u2 = rs.getInt("user2_id");
 
-                if (!friendsMapping.containsKey(smaller)) {
-                    friendsMapping.put(smaller, new JSONArray());
+                    int smaller = Math.min(u1, u2);
+                    int larger = Math.max(u1, u2);
+
+                    if (!friendsMapping.containsKey(smaller)) {
+                        friendsMapping.put(smaller, new JSONArray());
+                    }
+                    friendsMapping.get(smaller).put(larger);
                 }
-                friendsMapping.get(smaller).put(larger);
+                rs.close();
+
             }
-            rs.close();
+            
+            //CUrrent City quering
+            try (Statement stmt2 = oracleConnection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
+                String currentCityQuerying = String.format(
+                    "SELECT u.user_id, c.city_id, c.city_name, c.state_name, c.country_name " +
+                    "FROM %s u " +
+                    "JOIN %s ucc ON u.user_id = ucc.user_id " +
+                    "JOIN %s c ON ucc.current_city_id = c.city_id",
+                    userTableName, currentCityTableName, cityTableName
+                );
 
+                ResultSet rs1 = stmt2.executeQuery(currentCityQuerying);
+                while (rs1.next()) {
+                    JSONObject currentCity = new JSONObject();
+                    currentCity.put("city", rs1.getString("city_name"));
+                    currentCity.put("state", rs1.getString("state_name"));
+                    currentCity.put("country", rs1.getString("country_name"));
 
-            String currentCityQuerying = String.format(
-                "SELECT u.user_id, c.city_id, c.city_name, c.state_name, c.country_name " +
-                "FROM %s u " +
-                "JOIN %s ucc ON u.user_id = ucc.user_id " +
-                "JOIN %s c ON ucc.current_city_id = c.city_id",
-                userTableName, currentCityTableName, cityTableName
-            );
-
-            ResultSet rs1 = stmt.executeQuery(currentCityQuerying);
-            while (rs1.next()) {
-                JSONObject currentCity = new JSONObject();
-                currentCity.put("city", rs1.getString("city_name"));
-                currentCity.put("state", rs1.getString("state_name"));
-                currentCity.put("country", rs1.getString("country_name"));
-
-                int userId = rs1.getInt("user_id");
-                if (!currentCityMapping.containsKey(userId)) {
-                    currentCityMapping.put(userId, currentCity);
+                    int userId = rs1.getInt("user_id");
+                    if (!currentCityMapping.containsKey(userId)) {
+                        currentCityMapping.put(userId, currentCity);
                 }
-            }
+                
+                }
             rs1.close();
+            }
 
-            String hometownQuerying = String.format(
-                "SELECT u.user_id, c.city_id, c.city_name, c.state_name, c.country_name " +
-                "FROM %s u " +
-                "JOIN %s uhc ON u.user_id = uhc.user_id " +
-                "JOIN %s c ON uhc.hometown_city_id = c.city_id",
-                userTableName, hometownCityTableName, cityTableName
-            );
+            try (Statement stmt4 = oracleConnection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
+                String hometownQuerying = String.format(
+                    "SELECT u.user_id, c.city_id, c.city_name, c.state_name, c.country_name " +
+                    "FROM %s u " +
+                    "JOIN %s uhc ON u.user_id = uhc.user_id " +
+                    "JOIN %s c ON uhc.hometown_city_id = c.city_id",
+                    userTableName, hometownCityTableName, cityTableName
+                );
+                ResultSet rs2 = stmt4.executeQuery(hometownQuerying);
+                while (rs2.next()) {
+                    JSONObject hometownJson = new JSONObject();
+                    hometownJson.put("city", rs2.getString("city_name"));
+                    hometownJson.put("state", rs2.getString("state_name"));
+                    hometownJson.put("country", rs2.getString("country_name"));
 
-            ResultSet rs2 = stmt.executeQuery(hometownQuerying);
-            while (rs2.next()) {
-                JSONObject hometownJson = new JSONObject();
-                hometownJson.put("city", rs2.getString("city_name"));
-                hometownJson.put("state", rs2.getString("state_name"));
-                hometownJson.put("country", rs2.getString("country_name"));
-
-                int userId = rs2.getInt("user_id");
-                if (!hometownmapping.containsKey(userId)) {
-                    hometownmapping.put(userId, hometownJson);
+                    int userId = rs2.getInt("user_id");
+                    if (!hometownmapping.containsKey(userId)) {
+                        hometownmapping.put(userId, hometownJson);
+                    }
                 }
+                rs2.close();
             }
-            rs2.close();
 
-            ResultSet rs3 = stmt.executeQuery(userQuerying);
-            while (rs3.next()) {
-                JSONObject user_json = new JSONObject();
+            try (Statement stmt3 = oracleConnection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
+                ResultSet rs3 = stmt3.executeQuery(userQuerying);
+                while (rs3.next()) {
+                    JSONObject user_json = new JSONObject();
 
-                user_json.put("user_id", rs3.getInt("user_id"));
-                user_json.put("first_name", rs3.getString("first_name"));
-                user_json.put("last_name", rs3.getString("last_name"));
-                user_json.put("gender", rs3.getString("gender"));
-                user_json.put("YOB", rs3.getInt("year_of_birth"));
-                user_json.put("MOB", rs3.getInt("month_of_birth"));
-                user_json.put("DOB", rs3.getInt("day_of_birth"));
+                    user_json.put("user_id", rs3.getInt("user_id"));
+                    user_json.put("first_name", rs3.getString("first_name"));
+                    user_json.put("last_name", rs3.getString("last_name"));
+                    user_json.put("gender", rs3.getString("gender"));
+                    user_json.put("YOB", rs3.getInt("year_of_birth"));
+                    user_json.put("MOB", rs3.getInt("month_of_birth"));
+                    user_json.put("DOB", rs3.getInt("day_of_birth"));
 
-                int userId = rs3.getInt("user_id");
+                    int userId = rs3.getInt("user_id");
 
-                user_json.put("friends", friendsMapping.getOrDefault(userId, new JSONArray()));
-                user_json.put("current", currentCityMapping.getOrDefault(userId, new JSONObject()));
-                user_json.put("hometown", hometownmapping.getOrDefault(userId, new JSONObject()));
+                    user_json.put("friends", friendsMapping.getOrDefault(userId, new JSONArray()));
+                    user_json.put("current", currentCityMapping.getOrDefault(userId, new JSONObject()));
+                    user_json.put("hometown", hometownmapping.getOrDefault(userId, new JSONObject()));
 
-                users_info.put(user_json);
+                    users_info.put(user_json);
+                }
+                rs3.close();
             }
-            rs3.close();
 
-            stmt.close();
         } catch (SQLException e) {
             System.err.println(e.getMessage());
         }
-
+        System.out.println("Data has been successfully retrieved from the database.");
+        System.out.println("Total number of users: " + users_info.length());
         return users_info;
     }
 
@@ -157,6 +170,7 @@ public class GetData {
             file.write(users_info.toString());
             file.flush();
             file.close();
+            System.out.println("JSON data has been written to output.json");
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -164,3 +178,4 @@ public class GetData {
 
     }
 }
+
