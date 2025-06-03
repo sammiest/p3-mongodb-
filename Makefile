@@ -1,5 +1,5 @@
-uniqname = uniqname # replace with your uniqname
-password = password # replace with your mongoDB password (default: your uniqname)
+uniqname = sammiest # replace with your uniqname
+password = sammiest # replace with your mongoDB password (default: your uniqname)
 
 compile:
 	javac -Xlint:-unchecked -cp "ojdbc6.jar:json-20151123.jar:json_simple-1.1.jar:" Main.java GetData.java

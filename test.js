@@ -1,4 +1,4 @@
-let dbname = "uniqname"; // replace with your uniqname
+let dbname = "sammiest"; // replace with your uniqname
 
 function cleanUp(){
     db.getCollectionNames().forEach((col) => {
