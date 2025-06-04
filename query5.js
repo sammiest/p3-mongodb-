@@ -10,8 +10,44 @@
 function oldest_friend(dbname) {
     db = db.getSiblingDB(dbname);
 
+    db.flat_users.drop();
+
+    db.users.aggregate([
+        { $unwind: "$friends" },
+        { $project: { _id: 0, user_id: 1, friends: 1 } },
+        { $out: "flat_users" }
+    ]);
+
     let results = {};
-    // TODO: implement oldest friends
+
+    db.users.find({}, { user_id: 1 }).forEach(function(userDoc) {
+        const uid = userDoc.user_id;
+        const friendsList = [];
+
+        db.flat_users.find({
+            $or: [
+                { user_id: uid },
+                { friends: uid }
+            ]
+        }).forEach(function(pairDoc) {
+            if (pairDoc.user_id === uid) {
+                friendsList.push(pairDoc.friends);
+            } 
+            else {
+                friendsList.push(pairDoc.user_id);
+            }
+        });
+
+        if (friendsList.length === 0) return;; 
+
+        const oldestCursor = db.users.find({ user_id: { $in: friendsList } }, { user_id: 1, YOB: 1 }).sort({ YOB: 1, user_id: 1 }).limit(1);
+
+        if (oldestCursor.hasNext()) {
+            const oldestDoc = oldestCursor.next();
+            results[uid] = oldestDoc.user_id;
+        }
+    });
 
     return results;
+
 }
