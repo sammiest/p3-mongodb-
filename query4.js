@@ -18,7 +18,25 @@ function suggest_friends(year_diff, dbname) {
     db = db.getSiblingDB(dbname);
 
     let pairs = [];
-    // TODO: implement suggest friends
+    const user_a = db.users.find({gender : "male"}).toArray();
+    const user_b = db.users.find({gender : "female"}).toArray();
+
+    user_a.forEach(a => {
+        user_b.forEach(b => {
+            if (a.hometown.city === b.hometown.city){
+                const age_gap = Math.abs(a.YOB - b.YOB);
+                if (age_gap < year_diff){
+                    const a_friend_list = a.friends
+                    const b_friend_list = b.friends
+
+                    const are_friends = a_friend_list.includes(b.user_id) || b_friend_list.includes(a.user_id);
+                    if (!are_friends) {
+                        pairs.push([a.user_id, b.user_id]);
+                    }
+                }
+            }
+        });
+    });
 
     return pairs;
 }
